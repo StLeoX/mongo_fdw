@@ -17,7 +17,7 @@ MONGO_INCLUDE = $(shell pkg-config --cflags libmongoc-1.0)
 PG_CPPFLAGS = --std=c99 $(MONGO_INCLUDE) -I$(LIBJSON) -DMETA_DRIVER
 SHLIB_LINK = $(shell pkg-config --libs libmongoc-1.0)
 
-OBJS = connection.o option.o mongo_wrapper_meta.o mongo_fdw.o mongo_query.o
+OBJS = connection.o option.o mongo_wrapper.o mongo_fdw.o mongo_query.o
 
 EXTENSION = mongo_fdw
 DATA = mongo_fdw--1.0.sql
@@ -29,7 +29,6 @@ REGRESS_OPTS = --load-extension=$(EXTENSION)
 # Users need to specify their Postgres installation path through pg_config. For
 # example: /usr/local/pgsql/bin/pg_config or /usr/lib/postgresql/9.1/bin/pg_config
 #
-
 PG_CONFIG = /usr/local/pgsql/bin/pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
@@ -38,6 +37,6 @@ ifndef MAJORVERSION
     MAJORVERSION := $(basename $(VERSION))
 endif
 
-ifeq (,$(findstring $(MAJORVERSION), 9.3 9.4 9.5))
-    $(error PostgreSQL 9.3, 9.4 or 9.5 is required to compile this extension)
+ifeq (,$(findstring $(MAJORVERSION), 9.3))
+    $(error PostgreSQL 9.3 is required to compile this extension)
 endif

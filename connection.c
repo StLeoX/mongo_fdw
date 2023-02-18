@@ -30,14 +30,14 @@
  */
 typedef struct ConnCacheKey
 {
-	Oid			serverid;		/* OID of foreign server */
-	Oid			userid;			/* OID of local user whose mapping we use */
+    Oid serverid;        /* OID of foreign server */
+    Oid userid;            /* OID of local user whose mapping we use */
 } ConnCacheKey;
 
 typedef struct ConnCacheEntry
 {
-	ConnCacheKey key;		/* hash key (must be first) */
-	MONGO_CONN *conn;		/* connection to foreign server, or NULL */
+    ConnCacheKey key;        /* hash key (must be first) */
+    MONGO_CONN *conn;        /* connection to foreign server, or NULL */
 } ConnCacheEntry;
 
 /*
@@ -51,53 +51,53 @@ static HTAB *ConnectionHash = NULL;
  * the remote Mongo server with the user's authorization. A new connection
  * is established if we don't already have a suitable one.
  */
-MONGO_CONN*
+MONGO_CONN *
 mongo_get_connection(ForeignServer *server, UserMapping *user, MongoFdwOptions *opt)
 {
-	bool            found;
-	ConnCacheEntry  *entry;
-	ConnCacheKey    key;
+    bool found;
+    ConnCacheEntry *entry;
+    ConnCacheKey key;
 
-	/* First time through, initialize connection cache hashtable */
-	if (ConnectionHash == NULL)
-	{
-		HASHCTL	ctl;
-		MemSet(&ctl, 0, sizeof(ctl));
-		ctl.keysize = sizeof(ConnCacheKey);
-		ctl.entrysize = sizeof(ConnCacheEntry);
-		ctl.hash = tag_hash;
-		/* allocate ConnectionHash in the cache context */
-		ctl.hcxt = CacheMemoryContext;
-		ConnectionHash = hash_create("mongo_fdw connections", 8,
-							&ctl,
-							HASH_ELEM | HASH_FUNCTION | HASH_CONTEXT);
-	}
+    /* First time through, initialize connection cache hashtable */
+    if (ConnectionHash == NULL)
+    {
+        HASHCTL ctl;
+        MemSet(&ctl, 0, sizeof(ctl));
+        ctl.keysize = sizeof(ConnCacheKey);
+        ctl.entrysize = sizeof(ConnCacheEntry);
+        ctl.hash = tag_hash;
+        /* allocate ConnectionHash in the cache context */
+        ctl.hcxt = CacheMemoryContext;
+        ConnectionHash = hash_create("mongo_fdw connections", 8,
+                                     &ctl,
+                                     HASH_ELEM | HASH_FUNCTION | HASH_CONTEXT);
+    }
 
-	/* Create hash key for the entry.  Assume no pad bytes in key struct */
-	key.serverid = server->serverid;
-	key.userid = user->userid;
+    /* Create hash key for the entry.  Assume no pad bytes in key struct */
+    key.serverid = server->serverid;
+    key.userid = user->userid;
 
-	/*
-	 * Find or create cached entry for requested connection.
-	 */
-	entry = hash_search(ConnectionHash, &key, HASH_ENTER, &found);
-	if (!found)
-	{
-		/* initialize new hashtable entry (key is already filled in) */
-		entry->conn = NULL;
-	}
-	if (entry->conn == NULL)
-	{
+    /*
+     * Find or create cached entry for requested connection.
+     */
+    entry = hash_search(ConnectionHash, &key, HASH_ENTER, &found);
+    if (!found)
+    {
+        /* initialize new hashtable entry (key is already filled in) */
+        entry->conn = NULL;
+    }
+    if (entry->conn == NULL)
+    {
 #ifdef META_DRIVER
-		entry->conn = MongoConnect(opt->svr_address, opt->svr_port, opt->svr_database, opt->svr_username, opt->svr_password, opt->readPreference);
+        entry->conn = MongoConnect(opt->svr_address, opt->svr_port, opt->svr_database, opt->svr_username, opt->svr_password, opt->readPreference);
 #else
-		entry->conn = MongoConnect(opt->svr_address, opt->svr_port, opt->svr_database, opt->svr_username, opt->svr_password);
+        entry->conn = MongoConnect(opt->svr_address, opt->svr_port, opt->svr_database, opt->svr_username, opt->svr_password);
 #endif
-		elog(DEBUG3, "new mongo_fdw connection %p for server \"%s:%d\"",
-			 entry->conn, opt->svr_address, opt->svr_port);
-	}
+        elog(DEBUG3, "new mongo_fdw connection %p for server \"%s:%d\"",
+             entry->conn, opt->svr_address, opt->svr_port);
+    }
 
-	return entry->conn;
+    return entry->conn;
 }
 
 /*
@@ -107,22 +107,22 @@ mongo_get_connection(ForeignServer *server, UserMapping *user, MongoFdwOptions *
 void
 mongo_cleanup_connection()
 {
-	HASH_SEQ_STATUS	scan;
-	ConnCacheEntry *entry;
+    HASH_SEQ_STATUS scan;
+    ConnCacheEntry *entry;
 
-	if (ConnectionHash == NULL)
-		return;
+    if (ConnectionHash == NULL)
+        return;
 
-	hash_seq_init(&scan, ConnectionHash);
-	while ((entry = (ConnCacheEntry *) hash_seq_search(&scan)))
-	{
-		if (entry->conn == NULL)
-			continue;
+    hash_seq_init(&scan, ConnectionHash);
+    while ((entry = (ConnCacheEntry *) hash_seq_search(&scan)))
+    {
+        if (entry->conn == NULL)
+            continue;
 
-		elog(DEBUG3, "disconnecting mongo_fdw connection %p", entry->conn);
-		MongoDisconnect(entry->conn);
-		entry->conn = NULL;
-	}
+        elog(DEBUG3, "disconnecting mongo_fdw connection %p", entry->conn);
+        MongoDisconnect(entry->conn);
+        entry->conn = NULL;
+    }
 }
 
 /*
@@ -131,9 +131,9 @@ mongo_cleanup_connection()
 void
 mongo_release_connection(MONGO_CONN *conn)
 {
-	/*
-	 * We don't close the connection indvisually  here, will do all connection
-	 * cleanup on the backend exit.
-	 */
+    /*
+     * We don't close the connection indvisually  here, will do all connection
+     * cleanup on the backend exit.
+     */
 }
 

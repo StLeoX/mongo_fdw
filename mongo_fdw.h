@@ -8,16 +8,9 @@
 #ifndef MONGO_FDW_H
 #define MONGO_FDW_H
 
-#include "config.h"
 #include "mongo_wrapper.h"
 #include "bson.h"
-
-#ifdef META_DRIVER
-	#include "mongoc.h"
-#else
-	#include "mongo.h"
-#endif
-
+#include "mongoc.h"
 #include "fmgr.h"
 #include "catalog/pg_foreign_server.h"
 #include "catalog/pg_foreign_table.h"
