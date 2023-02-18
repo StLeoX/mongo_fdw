@@ -1,0 +1,47 @@
+# mongo_fdw/Makefile.meta
+#
+# Portions Copyright © 2004-2014, EnterpriseDB Corporation.
+#
+# Portions Copyright © 2012–2014 Citus Data, Inc.
+#
+
+MODULE_big = mongo_fdw
+
+#
+# We assume we are running on a POSIX compliant system (Linux, OSX). If you are
+# on another platform, change env_posix.os in MONGO_OBJS with the appropriate
+# environment object file.
+#
+LIBJSON = json-c
+LIBJSON_OBJS =  $(LIBJSON)/json_util.o $(LIBJSON)/json_object.o $(LIBJSON)/json_tokener.o \
+                                $(LIBJSON)/json_object_iterator.o $(LIBJSON)/printbuf.o $(LIBJSON)/linkhash.o \
+                                $(LIBJSON)/arraylist.o $(LIBJSON)/random_seed.o $(LIBJSON)/debug.o
+
+MONGO_INCLUDE = $(shell pkg-config --cflags libmongoc-1.0)
+PG_CPPFLAGS = --std=c99 $(MONGO_INCLUDE) -I$(LIBJSON) -DMETA_DRIVER
+SHLIB_LINK = $(shell pkg-config --libs libmongoc-1.0)
+
+OBJS = connection.o option.o mongo_wrapper_meta.o mongo_fdw.o mongo_query.o
+
+EXTENSION = mongo_fdw
+DATA = mongo_fdw--1.0.sql
+
+REGRESS = mongo_fdw
+REGRESS_OPTS = --load-extension=$(EXTENSION)
+
+#
+# Users need to specify their Postgres installation path through pg_config. For
+# example: /usr/local/pgsql/bin/pg_config or /usr/lib/postgresql/9.1/bin/pg_config
+#
+
+PG_CONFIG = /usr/local/pgsql/bin/pg_config
+PGXS := $(shell $(PG_CONFIG) --pgxs)
+include $(PGXS)
+
+ifndef MAJORVERSION
+    MAJORVERSION := $(basename $(VERSION))
+endif
+
+ifeq (,$(findstring $(MAJORVERSION), 9.3 9.4 9.5))
+    $(error PostgreSQL 9.3, 9.4 or 9.5 is required to compile this extension)
+endif
