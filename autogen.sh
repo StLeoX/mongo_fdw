@@ -3,14 +3,6 @@
 #-------------------------------------------------------------------------
 #
 # autogen.sh
-#             Foreign-data wrapper for remote MongoDB servers
-#
-# Portions Copyright (c) 2012-2014, PostgreSQL Global Development Group
-#
-# Portions Copyright (c) 2004-2014, EnterpriseDB Corporation.
-#
-# IDENTIFICATION
-#             autogen.sh
 #
 #-------------------------------------------------------------------------
 
@@ -117,10 +109,10 @@ elif [ "--with-master" == $1 ]; then
 	checkout_mongo_driver
 	checkout_json_lib
 	install_mongoc_driver
+	export PKG_CONFIG_PATH=mongo-c-driver/src/:mongo-c-driver/src/libbson/src
 	install_json_lib
 	create_config
-	export PKG_CONFIG_PATH=mongo-c-driver/src/:mongo-c-driver/src/libbson/src
-	cp Makefile.meta Makefile
+	cp Makefile.master Makefile
 	echo "Done"
 else
 	echo "Usage: autogen.sh --[with-legacy | with-master]"

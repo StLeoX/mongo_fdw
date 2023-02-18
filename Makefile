@@ -1,9 +1,5 @@
 # mongo_fdw/Makefile.meta
 #
-# Portions Copyright © 2004-2014, EnterpriseDB Corporation.
-#
-# Portions Copyright © 2012–2014 Citus Data, Inc.
-#
 
 MODULE_big = mongo_fdw
 
