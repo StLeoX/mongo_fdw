@@ -117,10 +117,9 @@ static List *MongoPlanForeignModify(PlannerInfo *root,
                                     Index resultRelation,
                                     int subplan_index);
 
-static void
-MongoExplainForeignModify(ModifyTableState *mtstate,
-                          ResultRelInfo *rinfo, List *fdw_private,
-                          int subplan_index, ExplainState *es);
+static void MongoExplainForeignModify(ModifyTableState *mtstate,
+                                      ResultRelInfo *rinfo, List *fdw_private,
+                                      int subplan_index, ExplainState *es);
 
 /* local functions */
 static double ForeignTableDocumentCount(Oid foreignTableId);
@@ -154,15 +153,9 @@ extern PGDLLEXPORT void _PG_init(void);
 
 const char *EscapeJsonString(const char *string);
 
-#ifdef META_DRIVER
-
 void DumpJsonObject(StringInfo buffer, BSON_ITERATOR *iter);
 
 void DumpJsonArray(StringInfo buffer, BSON_ITERATOR *iter);
-
-#else
-void DumpJson(StringInfo buffer, const char *bsonData, bool isArray);
-#endif
 
 /* the null action object used for pure validation */
 static JsonSemAction nullSemAction =
@@ -926,13 +919,8 @@ MongoExecForeignUpdate(EState *estate,
                 continue;
 
             value = slot_getattr(slot, attnum, &isnull);
-#ifdef META_DRIVER
             AppenMongoValue(&set, slot->tts_tupleDescriptor->attrs[attnum - 1]->attname.data, value,
                             isnull ? true : false, slot->tts_tupleDescriptor->attrs[attnum - 1]->atttypid);
-#else
-            AppenMongoValue(b, slot->tts_tupleDescriptor->attrs[attnum - 1]->attname.data, value,
-                            isnull ? true : false, slot->tts_tupleDescriptor->attrs[attnum - 1]->atttypid);
-#endif
         }
     }
     BsonAppendFinishObject(b, &set);
@@ -1287,16 +1275,10 @@ ColumnTypesCompatible(BSON_TYPE bsonType, Oid columnTypeId)
         }
         case BYTEAOID:
         {
-            if (bsonType == BSON_TYPE_BINDATA)
+            if (bsonType == BSON_TYPE_BINDATA || bsonType == BSON_TYPE_OID)
             {
                 compatibleTypes = true;
             }
-#ifdef META_DRIVER
-            if (bsonType == BSON_TYPE_OID)
-            {
-                compatibleTypes = true;
-            }
-#endif
             break;
         }
         case NAMEOID:
@@ -1509,7 +1491,6 @@ ColumnValue(BSON_ITERATOR *bsonIterator, Oid columnTypeId, int32 columnTypeMod)
             int value_len;
             char *value;
             bytea *result;
-#ifdef META_DRIVER
             switch (BsonIterType(bsonIterator))
             {
                 case BSON_TYPE_OID:
@@ -1520,10 +1501,6 @@ ColumnValue(BSON_ITERATOR *bsonIterator, Oid columnTypeId, int32 columnTypeMod)
                     value = (char *) BsonIterBinData(bsonIterator, (uint32_t *) &value_len);
                     break;
             }
-#else
-            value_len = BsonIterBinLen(bsonIterator);
-            value = (char*)BsonIterBinData(bsonIterator);
-#endif
             result = (bytea *) palloc(value_len + VARHDRSZ);
             memcpy(VARDATA(result), value, value_len);
             SET_VARSIZE(result, value_len + VARHDRSZ);
@@ -1553,7 +1530,6 @@ ColumnValue(BSON_ITERATOR *bsonIterator, Oid columnTypeId, int32 columnTypeMod)
         {
             JsonLexContext *lex;
             text *result;
-            bool is_array;
             StringInfo buffer = makeStringInfo();
 
             BSON_TYPE type = BSON_ITER_TYPE(bsonIterator);
@@ -1561,20 +1537,13 @@ ColumnValue(BSON_ITERATOR *bsonIterator, Oid columnTypeId, int32 columnTypeMod)
             {
                 ereport(ERROR, (errmsg("cannot convert scolar to json")));
             }
-            is_array = (BSON_TYPE_ARRAY == type);
-
-#ifdef META_DRIVER
-            if (is_array)
+            if (BSON_TYPE_ARRAY == type)
             {
                 DumpJsonArray(buffer, bsonIterator);
             } else
             {
                 DumpJsonObject(buffer, bsonIterator);
             }
-#else
-            DumpJson(buffer, bson_iterator_value(bsonIterator), is_array);
-#endif
-
             result = cstring_to_text_with_len(buffer->data, buffer->len);
 
             /* validate it */
@@ -1594,17 +1563,6 @@ ColumnValue(BSON_ITERATOR *bsonIterator, Oid columnTypeId, int32 columnTypeMod)
 
     return columnValue;
 }
-
-
-/*
- * DumpJson converts BSON document to a JSON string.
- * isArray signifies if bsonData is contents of array or object.
- * [Some of] special BSON datatypes are converted to JSON using
- * "Strict MongoDB Extended JSON" [1].
- *
- * [1] http://docs.mongodb.org/manual/reference/mongodb-extended-json/
- */
-#ifdef META_DRIVER
 
 void
 DumpJsonObject(StringInfo output, BSON_ITERATOR *iter)
@@ -1645,137 +1603,6 @@ DumpJsonArray(StringInfo output, BSON_ITERATOR *iter)
         }
     }
 }
-
-#else
-void
-DumpJson(StringInfo output, const char *bsonData, bool isArray)
-{
-    bson_iterator    i;
-    const char       *key;
-    bool             isFirstElement;
-    char             beginSymbol, endSymbol;
-    bson_type        t;
-
-
-    bson_iterator_from_buffer(&i, bsonData);
-
-    if (isArray)
-    {
-        beginSymbol = '[';
-        endSymbol = ']';
-    }
-    else
-    {
-        beginSymbol = '{';
-        endSymbol = '}';
-    }
-
-    appendStringInfoChar(output, beginSymbol);
-
-    isFirstElement = true;
-    while (bson_iterator_next(&i))
-    {
-        if (!isFirstElement)
-        {
-            appendStringInfoChar(output, ',');
-        }
-
-        t = bson_iterator_type(&i);
-        if (t == 0) break;
-        key = bson_iterator_key(&i);
-
-        if (!isArray)
-        {
-            appendStringInfo(output, "\"%s\":", key);
-        }
-
-        switch (t)
-        {
-            case BSON_TYPE_DOUBLE:
-                appendStringInfo(output, "%f", bson_iterator_double(&i));
-                break;
-            case BSON_TYPE_UTF8:
-                appendStringInfo(output, "\"%s\"",
-                        EscapeJsonString(bson_iterator_string(&i)));
-                break;
-            case BSON_TYPE_SYMBOL:
-                ereport(ERROR, (errcode(ERRCODE_FDW_INVALID_DATA_TYPE),
-                                errmsg("`symbol` BSON type is deprecated and "
-                                       "unsupported"),
-                                errhint("Symbol: %s", bson_iterator_string(&i))));
-                break;
-            case BSON_TYPE_OID:
-            {
-                char oidhex[25];
-                bson_oid_to_string(bson_iterator_oid(&i), oidhex);
-                appendStringInfo(output, "{\"$oid\":\"%s\"}", oidhex);
-                break;
-            }
-            case BSON_TYPE_BOOL:
-                appendStringInfoString(
-                        output, bson_iterator_bool(&i) ? "true" : "false");
-                break;
-            case BSON_TYPE_DATE_TIME:
-                appendStringInfo(output, "{\"$date\":%ld}",
-                        (long int)bson_iterator_date(&i));
-                break;
-            case BSON_TYPE_BINDATA:
-                /* It's possible to encode the data with base64 here. */
-                ereport(ERROR, (errcode(ERRCODE_FDW_INVALID_DATA_TYPE),
-                                errmsg("support for `binary data` BSON type "
-                                       "is not implemented")));
-                break;
-            case BSON_TYPE_UNDEFINED:
-                ereport(ERROR, (errcode(ERRCODE_FDW_INVALID_DATA_TYPE),
-                                errmsg("`undefined` BSON type is deprecated "
-                                       "and unsupported")));
-                break;
-            case BSON_TYPE_NULL:
-                appendStringInfoString(output, "null");
-                break;
-            case BSON_TYPE_REGEX:
-                ereport(ERROR, (errcode(ERRCODE_FDW_INVALID_DATA_TYPE),
-                                errmsg("support for `regex` BSON type is "
-                                       "not implemented"),
-                                errhint("Regex: %s", bson_iterator_regex(&i))));
-                break;
-            case BSON_TYPE_CODE:
-                ereport(ERROR, (errcode(ERRCODE_FDW_INVALID_DATA_TYPE),
-                                errmsg("support for `code` BSON type is "
-                                       "not implemented"),
-                                errhint("Code: %s", bson_iterator_code(&i))));
-                break;
-            case BSON_TYPE_CODEWSCOPE:
-                ereport(ERROR, (errcode(ERRCODE_FDW_INVALID_DATA_TYPE),
-                                errmsg("support for `code with scope` BSON "
-                                       "type is not implemented")));
-                break;
-            case BSON_TYPE_INT32:
-                appendStringInfo(output, "%d", bson_iterator_int(&i));
-                break;
-            case BSON_TYPE_INT64:
-                appendStringInfo(output, "%lld", (uint64_t)bson_iterator_long(&i));
-                break;
-            case BSON_TYPE_TIMESTAMP:
-                ereport(ERROR, (errcode(ERRCODE_FDW_INVALID_DATA_TYPE),
-                                errmsg("internal `timestamp` BSON type is "
-                                       "and unsupported")));
-                break;
-            case BSON_TYPE_DOCUMENT:
-                DumpJson(output, bson_iterator_value(&i), false);
-                break;
-            case BSON_TYPE_ARRAY:
-                DumpJson(output, bson_iterator_value(&i), true);
-                break;
-            default:
-                ereport(ERROR, (errcode(ERRCODE_FDW_INVALID_DATA_TYPE),
-                                errmsg("unsupported BSON type: %d", t)));
-        }
-        isFirstElement = false;
-    }
-    appendStringInfoChar(output, endSymbol);
-}
-#endif
 
 /*
  * EscapeJsonString escapes a string for safe inclusion in JSON.
@@ -2029,7 +1856,6 @@ MongoAcquireSampleRows(Relation relation, int errorLevel,
             MemoryContextSwitchTo(oldContext);
         } else
         {
-#ifdef META_DRIVER
             bson_error_t error;
             if (mongoc_cursor_error(mongoCursor, &error))
             {
@@ -2037,15 +1863,6 @@ MongoAcquireSampleRows(Relation relation, int errorLevel,
                 ereport(ERROR, (errmsg("could not iterate over mongo collection"),
                         errhint("Mongo driver error: %s", error.message)));
             }
-#else
-            mongo_cursor_error_t errorCode = mongoCursor->err;
-            if (errorCode != MONGO_CURSOR_EXHAUSTED)
-            {
-                MongoFreeScanState(fmstate);
-                ereport(ERROR, (errmsg("could not iterate over mongo collection"),
-                        errhint("Mongo driver cursor error code: %d", errorCode)));
-            }
-#endif
             break;
         }
 

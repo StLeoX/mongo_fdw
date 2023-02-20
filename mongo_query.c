@@ -233,24 +233,15 @@ QueryDocument(Oid relationId, List *opExpressionList)
 
             operatorName = get_opname(columnOperator->opno);
             mongoOperatorName = MongoOperatorName(operatorName);
-#ifdef META_DRIVER
             AppendConstantValue(&r, mongoOperatorName, constant);
-#else
-            AppendConstantValue(queryDocument, mongoOperatorName, constant);
-#endif
         }
         BsonAppendFinishObject(queryDocument, &r);
     }
 
     if (!BsonFinish(queryDocument))
     {
-#ifdef META_DRIVER
         ereport(ERROR, (errmsg("could not create document for query"),
                 errhint("BSON flags: %d", queryDocument->flags)));
-#else
-        ereport(ERROR, (errmsg("could not create document for query"),
-                        errhint("BSON error: %d", queryDocument->err)));
-#endif
     }
 
     return queryDocument;
@@ -461,7 +452,6 @@ AppenMongoValue(BSON *queryDocument, const char *keyName, Datum value, bool isnu
                 len = VARSIZE_4B(result) - VARHDRSZ;
                 data = VARDATA_4B(result);
             }
-#ifdef META_DRIVER
             if (strcmp(keyName, "_id") == 0)
             {
                 bson_oid_t oid;
@@ -471,9 +461,6 @@ AppenMongoValue(BSON *queryDocument, const char *keyName, Datum value, bool isnu
             {
                 status = BsonAppendBinary(queryDocument, keyName, data, len);
             }
-#else
-            status = BsonAppendBinary(queryDocument, keyName, data, len);
-#endif
             break;
         }
         case NAMEOID:
@@ -538,11 +525,7 @@ AppenMongoValue(BSON *queryDocument, const char *keyName, Datum value, bool isnu
 
                 valueDatum = DirectFunctionCall1(numeric_float8, elem_values[i]);
                 valueFloat = DatumGetFloat8(valueDatum);
-#ifdef META_DRIVER
                 status = BsonAppendDouble(&t, keyName, valueFloat);
-#else
-                status = BsonAppendDouble(queryDocument, keyName, valueFloat);
-#endif
             }
             BsonAppendFinishArray(queryDocument, &t);
             pfree(elem_values);

@@ -1,6 +1,6 @@
 /*-------------------------------------------------------------------------
  *
- * mongo_wrapper_meta.c
+ * mongo_wrapper.c
  *
  *-------------------------------------------------------------------------
  */
@@ -103,7 +103,7 @@ MongoDelete(MONGO_CONN *conn, char *database, char *collection, BSON *b)
 
     c = mongoc_client_get_collection(conn, database, collection);
 
-    r = mongoc_collection_remove(c, MONGOC_DELETE_SINGLE_REMOVE, b, NULL, &error);
+    r = mongoc_collection_remove(c, MONGOC_REMOVE_SINGLE_REMOVE, b, NULL, &error);
     mongoc_collection_destroy(c);
     if (!r)
         ereport(ERROR, (errmsg("failed to delete row"),
@@ -123,7 +123,7 @@ MongoCursorCreate(MONGO_CONN *conn, char *database, char *collection, BSON *q)
     bson_error_t error;
 
     c = mongoc_client_get_collection(conn, database, collection);
-    cur = mongoc_collection_find(c, MONGOC_QUERY_SLAVE_OK, 0, 0, 0, q, NULL, NULL);
+    cur = mongoc_collection_find_with_opts(c, q, NULL, NULL);
     mongoc_cursor_error(cur, &error);
     if (!cur)
         ereport(ERROR, (errmsg("failed to create cursor"),
@@ -201,7 +201,10 @@ BsonIterInit(BSON_ITERATOR *it, BSON *b)
 bool
 BsonIterSubObject(BSON_ITERATOR *it, BSON *b)
 {
-    /* TODO: Need to see the Meta Driver equalient for "bson_iterator_subobject" */
+    const uint8_t *buffer;
+    uint32_t len;
+    bson_iter_document(it, &len, &buffer);
+    bson_init_static(b, buffer, len);
     return true;
 }
 
@@ -390,14 +393,13 @@ bool
 BsonFinish(BSON *b)
 {
     /*
-     * There is no need for bson_finish in Meta Driver.
-     * We are doing nothing, just because of compatiblity with legacy
-     * driver.
+     * There is no need for bson_finish.
      */
     return true;
 }
 
-bool JsonToBsonAppendElement(BSON *bb, const char *k, struct json_object *v)
+bool
+JsonToBsonAppendElement(BSON *bb, const char *k, struct json_object *v)
 {
     elog(ERROR, "JSON support for Meta Driver not implemented");
 }

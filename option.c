@@ -142,11 +142,8 @@ mongo_get_options(Oid foreignTableId)
     char *collectionName = NULL;
     char *svr_username = NULL;
     char *svr_password = NULL;
-#ifdef META_DRIVER
     char *readPreference = NULL;
-
     readPreference = mongo_get_option_value(foreignTableId, OPTION_NAME_READ_PREFERENCE);
-#endif
 
     addressName = mongo_get_option_value(foreignTableId, OPTION_NAME_ADDRESS);
     if (addressName == NULL)
@@ -177,10 +174,7 @@ mongo_get_options(Oid foreignTableId)
     options->collectionName = collectionName;
     options->svr_username = svr_username;
     options->svr_password = svr_password;
-
-#ifdef META_DRIVER
     options->readPreference = readPreference;
-#endif
 
     return options;
 }

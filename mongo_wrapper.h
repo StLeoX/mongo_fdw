@@ -55,8 +55,6 @@ const char *BsonIterString(BSON_ITERATOR *it);
 
 const char *BsonIterBinData(BSON_ITERATOR *it, uint32_t *len);
 
-const char *BsonIterBinData(BSON_ITERATOR *it);
-
 int BsonIterBinLen(BSON_ITERATOR *it);
 
 const bson_oid_t *BsonIterOid(BSON_ITERATOR *it);

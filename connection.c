@@ -18,9 +18,6 @@
 #include "utils/memutils.h"
 #include "utils/resowner.h"
 
-/* Length of host */
-#define HOST_LEN 256
-
 /*
  * Connection cache hash table entry
  *
@@ -47,7 +44,7 @@ static HTAB *ConnectionHash = NULL;
 
 /*
  * mongo_get_connection:
- * 			Get a mong connection which can be used to execute queries on
+ * 			Get a mongo connection which can be used to execute queries on
  * the remote Mongo server with the user's authorization. A new connection
  * is established if we don't already have a suitable one.
  */
@@ -88,11 +85,7 @@ mongo_get_connection(ForeignServer *server, UserMapping *user, MongoFdwOptions *
     }
     if (entry->conn == NULL)
     {
-#ifdef META_DRIVER
         entry->conn = MongoConnect(opt->svr_address, opt->svr_port, opt->svr_database, opt->svr_username, opt->svr_password, opt->readPreference);
-#else
-        entry->conn = MongoConnect(opt->svr_address, opt->svr_port, opt->svr_database, opt->svr_username, opt->svr_password);
-#endif
         elog(DEBUG3, "new mongo_fdw connection %p for server \"%s:%d\"",
              entry->conn, opt->svr_address, opt->svr_port);
     }
@@ -136,4 +129,3 @@ mongo_release_connection(MONGO_CONN *conn)
      * cleanup on the backend exit.
      */
 }
-
