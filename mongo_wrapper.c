@@ -404,9 +404,89 @@ JsonToBsonAppendElement(BSON *bb, const char *k, struct json_object *v)
     elog(ERROR, "JSON support for Meta Driver not implemented");
 }
 
+/*
+bool
+JsonToBsonAppendElement(BSON *bb, const char *k, struct json_object *v)
+{
+    bool status = true;
+
+    if (!v)
+    {
+        BsonAppendNull(bb, k);
+        return status;
+    }
+
+    switch (json_object_get_type(v))
+    {
+        case json_type_int:
+            BsonAppendInt32(bb, k, json_object_get_int(v));
+            break;
+        case json_type_boolean:
+            BsonAppendBool(bb, k, json_object_get_boolean(v));
+            break;
+        case json_type_double:
+            BsonAppendDouble(bb, k, json_object_get_double(v));
+            break;
+        case json_type_string:
+            BsonAppendUTF8(bb, k, (char *) json_object_get_string(v));
+            break;
+        case json_type_object:
+        {
+            BSON t;
+            struct json_object *joj;
+
+            if (json_object_object_get_ex(v, "$oid", &joj))
+            {
+                bson_oid_t bsonObjectId;
+
+                memset(bsonObjectId.bytes, 0, sizeof(bsonObjectId.bytes));
+                BsonOidFromString(&bsonObjectId, (char *) json_object_get_string(joj));
+                status = BsonAppendOid(bb, k, &bsonObjectId);
+                break;
+            }
+            if (json_object_object_get_ex(v, "$date", &joj))
+            {
+                status = BsonAppendDate(bb, k, json_object_get_int64(joj));
+                break;
+            }
+            BsonAppendStartObject(bb, (char *) k, &t);
+
+            {
+                json_object_object_foreach(v, kk, vv)JsonToBsonAppendElement(&t, kk, vv);
+            }
+            BsonAppendFinishObject(bb, &t);
+        }
+            break;
+        case json_type_array:
+        {
+            int i;
+            char buf[10];
+            BSON t;
+
+            BsonAppendStartArray(bb, k, &t);
+            for (i = 0; i < json_object_array_length(v); i++)
+            {
+                sprintf(buf, "%d", i);
+                JsonToBsonAppendElement(&t, buf, json_object_array_get_idx(v, i));
+            }
+            BsonAppendFinishObject(bb, &t);
+        }
+            break;
+        default:
+            ereport(ERROR,
+                    (errcode(ERRCODE_FDW_INVALID_DATA_TYPE),
+                            errmsg("can't handle type for : %s",
+                                   json_object_to_json_string(v))));
+    }
+
+    return status;
+}
+*/
+
 json_object *
 JsonTokenerPrase(char *s)
 {
+    // return json_tokener_parse(s);
     elog(ERROR, "JSON support for Meta Driver not implemented");
     return NULL;
 }
@@ -419,15 +499,13 @@ MongoAggregateCount(MONGO_CONN *conn, const char *database, const char *collecti
 {
     BSON *command = NULL;
     BSON *reply = NULL;
-    BSON *doc = NULL;
     double count = 0;
     mongoc_cursor_t *cursor = NULL;
-    bool ret = false;
 
     command = BsonCreate();
     reply = BsonCreate();
     BsonAppendUTF8(command, "count", (char *) collection);
-    if (b) /* not empty */
+    if (b)
         BsonAppendBson(command, "query", (BSON *) b);
 
     BsonFinish(command);
@@ -435,14 +513,14 @@ MongoAggregateCount(MONGO_CONN *conn, const char *database, const char *collecti
     cursor = mongoc_client_command(conn, database, MONGOC_QUERY_SLAVE_OK, 0, 1, 0, command, NULL, NULL);
     if (cursor)
     {
-        ret = mongoc_cursor_next(cursor, (const BSON **) &doc);
+        BSON *doc = NULL;
+        bool ret = mongoc_cursor_next(cursor, (const BSON **) &doc);
         if (ret)
         {
             bson_iter_t it;
             bson_copy_to(doc, reply);
             if (bson_iter_init_find(&it, reply, "n"))
                 count = BsonIterDouble(&it);
-            BsonDestroy(doc);
         }
         mongoc_cursor_destroy(cursor);
     }

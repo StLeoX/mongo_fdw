@@ -10,3 +10,7 @@
 
 `mongo-c-driver` 兼容性问题，[ref](https://www.mongodb.com/docs/drivers/c/#compatibility)，1.18.0 版本是支持 MongoDB5.0 的最低版本。
 
+## TODO
+1. 使用 valgrind 进行内存泄露检测；
+2. 编写自动化测试；
+3. 编写压测；

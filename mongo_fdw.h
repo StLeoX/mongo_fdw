@@ -116,8 +116,8 @@
  */
 typedef struct MongoValidOption
 {
-	const char *optionName;
-	Oid optionContextId;
+    const char *optionName;
+    Oid optionContextId;
 
 } MongoValidOption;
 
@@ -125,21 +125,21 @@ typedef struct MongoValidOption
 /* Array of options that are valid for mongo_fdw */
 static const uint32 ValidOptionCount = 7;
 static const MongoValidOption ValidOptionArray[] =
-{
-	/* foreign server options */
-	{ OPTION_NAME_ADDRESS, ForeignServerRelationId },
-	{ OPTION_NAME_PORT, ForeignServerRelationId },
-	{ OPTION_NAME_READ_PREFERENCE, ForeignServerRelationId },
+        {
+                /* foreign server options */
+                {OPTION_NAME_ADDRESS, ForeignServerRelationId},
+                {OPTION_NAME_PORT, ForeignServerRelationId},
+                {OPTION_NAME_READ_PREFERENCE, ForeignServerRelationId},
 
-	/* foreign table options */
-	{ OPTION_NAME_DATABASE, ForeignTableRelationId },
-	{ OPTION_NAME_COLLECTION, ForeignTableRelationId },
+                /* foreign table options */
+                {OPTION_NAME_DATABASE, ForeignTableRelationId},
+                {OPTION_NAME_COLLECTION, ForeignTableRelationId},
 
-	/* User mapping options */
-	{ OPTION_NAME_USERNAME, UserMappingRelationId },
-	{ OPTION_NAME_PASSWORD, UserMappingRelationId }
+                /* User mapping options */
+                {OPTION_NAME_USERNAME, UserMappingRelationId},
+                {OPTION_NAME_PASSWORD, UserMappingRelationId}
 
-};
+        };
 
 
 /*
@@ -149,13 +149,13 @@ static const MongoValidOption ValidOptionArray[] =
  */
 typedef struct MongoFdwOptions
 {
-	char *svr_address;
-	int32 svr_port;
-	char *svr_database;
-	char *collectionName;
-	char *svr_username;
-	char *svr_password;
-	char *readPreference;
+    char *svr_address;
+    int32 svr_port;
+    char *svr_database;
+    char *collectionName;
+    char *svr_username;
+    char *svr_password;
+    char *readPreference;
 } MongoFdwOptions;
 
 
@@ -168,23 +168,23 @@ typedef struct MongoFdwOptions
  */
 typedef struct MongoFdwModifyState
 {
-	Relation		rel;				/* relcache entry for the foreign table */
-	List			*target_attrs;		/* list of target attribute numbers */
+    Relation rel;                /* relcache entry for the foreign table */
+    List *target_attrs;        /* list of target attribute numbers */
 
-	/* info about parameters for prepared statement */
-	int				p_nums;				/* number of parameters to transmit */
-	FmgrInfo		*p_flinfo;			/* output conversion functions for them */
+    /* info about parameters for prepared statement */
+    int p_nums;                /* number of parameters to transmit */
+    FmgrInfo *p_flinfo;            /* output conversion functions for them */
 
-	struct HTAB		*columnMappingHash;
+    struct HTAB *columnMappingHash;
 
-	MONGO_CONN		*mongoConnection;	/* MongoDB connection */
-	MONGO_CURSOR	*mongoCursor;		/* MongoDB cursor */
-	BSON			*queryDocument;		/* Bson Document */
+    MONGO_CONN *mongoConnection;    /* MongoDB connection */
+    MONGO_CURSOR *mongoCursor;        /* MongoDB cursor */
+    BSON *queryDocument;        /* Bson Document */
 
-	MongoFdwOptions	*options;
+    MongoFdwOptions *options;
 
-	/* working memory context */
-	MemoryContext	temp_cxt;			/* context for per-tuple temporary data */
+    /* working memory context */
+    MemoryContext temp_cxt;            /* context for per-tuple temporary data */
 } MongoFdwModifyState;
 
 
@@ -196,31 +196,37 @@ typedef struct MongoFdwModifyState
  */
 typedef struct ColumnMapping
 {
-	char columnName[NAMEDATALEN];
-	uint32 columnIndex;
-	Oid columnTypeId;
-	int32 columnTypeMod;
-	Oid columnArrayTypeId;
+    char columnName[NAMEDATALEN];
+    uint32 columnIndex;
+    Oid columnTypeId;
+    int32 columnTypeMod;
+    Oid columnArrayTypeId;
 } ColumnMapping;
 
 /* options.c */
-extern MongoFdwOptions * mongo_get_options(Oid foreignTableId);
+extern MongoFdwOptions *mongo_get_options(Oid foreignTableId);
+
 extern void mongo_free_options(MongoFdwOptions *options);
+
 extern StringInfo mongo_option_names_string(Oid currentContextId);
 
 /* connection.c */
-MONGO_CONN* mongo_get_connection(ForeignServer *server, UserMapping *user, MongoFdwOptions *opt);
+MONGO_CONN *mongo_get_connection(ForeignServer *server, UserMapping *user, MongoFdwOptions *opt);
 
 extern void mongo_cleanup_connection(void);
-extern void mongo_release_connection(MONGO_CONN* conn);
+
+extern void mongo_release_connection(MONGO_CONN *conn);
 
 /* Function declarations related to creating the mongo query */
-extern List * ApplicableOpExpressionList(RelOptInfo *baserel);
-extern BSON * QueryDocument(Oid relationId, List *opExpressionList);
-extern List * ColumnList(RelOptInfo *baserel);
+extern List *ApplicableOpExpressionList(RelOptInfo *baserel);
+
+extern BSON *QueryDocument(Oid relationId, List *opExpressionList);
+
+extern List *ColumnList(RelOptInfo *baserel);
 
 /* Function declarations for foreign data wrapper */
 extern Datum mongo_fdw_handler(PG_FUNCTION_ARGS);
+
 extern Datum mongo_fdw_validator(PG_FUNCTION_ARGS);
 
 

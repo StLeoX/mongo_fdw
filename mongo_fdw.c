@@ -187,6 +187,7 @@ Datum
 mongo_fdw_handler(PG_FUNCTION_ARGS)
 {
     FdwRoutine *fdwRoutine = makeNode(FdwRoutine);
+    /* support for basic operations */
     fdwRoutine->GetForeignRelSize = MongoGetForeignRelSize;
     fdwRoutine->GetForeignPaths = MongoGetForeignPaths;
     fdwRoutine->GetForeignPlan = MongoGetForeignPlan;
@@ -194,12 +195,11 @@ mongo_fdw_handler(PG_FUNCTION_ARGS)
     fdwRoutine->IterateForeignScan = MongoIterateForeignScan;
     fdwRoutine->ReScanForeignScan = MongoReScanForeignScan;
     fdwRoutine->EndForeignScan = MongoEndForeignScan;
-    fdwRoutine->AnalyzeForeignTable = MongoAnalyzeForeignTable;
 
-    /* support for insert / update / delete */
-    fdwRoutine->ExecForeignInsert = MongoExecForeignInsert;
+    /* support for insert / update / delete operations */
     fdwRoutine->BeginForeignModify = MongoBeginForeignModify;
     fdwRoutine->PlanForeignModify = MongoPlanForeignModify;
+    fdwRoutine->ExecForeignInsert = MongoExecForeignInsert;
     fdwRoutine->AddForeignUpdateTargets = MongoAddForeignUpdateTargets;
     fdwRoutine->ExecForeignUpdate = MongoExecForeignUpdate;
     fdwRoutine->ExecForeignDelete = MongoExecForeignDelete;
@@ -1062,7 +1062,6 @@ ForeignTableDocumentCount(Oid foreignTableId)
      */
     mongoConnection = mongo_get_connection(server, user, options);
 
-
     documentCount = MongoAggregateCount(mongoConnection, options->svr_database, options->collectionName, emptyQuery);
 
     mongo_free_options(options);
@@ -1723,8 +1722,8 @@ MongoAnalyzeForeignTable(Relation relation,
         pageCount = (BlockNumber) rint(foreignTableSize / BLCKSZ);
     } else
     {
-        ereport(ERROR, (errmsg("could not retrieve document count for collection"),
-                errhint("could not	collect statistics about foreign table")));
+        ereport(DEBUG1, (errmsg("could not retrieve document count for collection"),
+                errhint("could not collect statistics about foreign table")));
     }
 
     (*totalPageCount) = pageCount;

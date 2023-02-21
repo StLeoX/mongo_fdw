@@ -102,7 +102,7 @@ CREATE FOREIGN TABLE warehouse(
          warehouse_name text,
          warehouse_created timestamptz)
 SERVER mongo_server
-         OPTIONS (database 'test', collection 'warehouse');
+         OPTIONS (database 'testdb', collection 'warehouse');
 
 -- Note: first column of the table must be "_id" of type "NAME".
 
